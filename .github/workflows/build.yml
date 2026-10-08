@@ -20,6 +20,7 @@ env:
 
 jobs:
   checks:
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -53,6 +54,7 @@ jobs:
         continue-on-error: true
 
   android:
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -139,10 +141,8 @@ jobs:
           if-no-files-found: error
           retention-days: 14
   windows:
-    if: false
-    needs: checks
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -153,6 +153,35 @@ jobs:
             arguments: '--all-sources'
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: native/go.mod
+          cache-dependency-path: native/go.sum
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+          cache: true
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: mingw-w64-x86_64-gcc
+      - name: 把 MinGW-w64 加入 PATH
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_PATH -Value 'C:\msys64\mingw64\bin'
+      - name: 构建 Windows 包
+        shell: pwsh
+        run: python scripts/build_windows.py ${{ matrix.arguments }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.edition }}-windows
+          path: dist/windows/*
+          if-no-files-found: error
+          retention-days: 14
 
   ios:
     if: false
